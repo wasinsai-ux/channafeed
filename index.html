@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เครื่องคำนวณอาหารปลาช่อน (MIT AI Simulator)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom configuration for Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#1e40af',
+                        'secondary-green': '#10b981',
+                        'bg-light': '#f3f4f6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Ensuring the font is set */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-bg-light min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Calculation Card -->
+    <div class="w-full max-w-md bg-white shadow-xl rounded-xl p-6 md:p-8">
+        <h1 class="text-3xl font-bold text-primary-blue text-center mb-6">
+            คำนวณอาหารพ่อแม่พันธุ์ปลาช่อน
+        </h1>
+        <p class="text-gray-600 text-center mb-8">
+            กรอกน้ำหนักรวม (Biomass) ของปลาช่อนพ่อแม่พันธุ์ในบ่อ (หน่วยเป็น กิโลกรัม)
+        </p>
+
+        <!-- Input Field -->
+        <div class="mb-6">
+            <label for="weightInput" class="block text-gray-700 font-semibold mb-2">
+                น้ำหนักรวมพ่อแม่พันธุ์ปลาช่อน (กก.)
+            </label>
+            <input 
+                type="number" 
+                id="weightInput" 
+                placeholder="เช่น 100" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-green text-lg"
+                min="0"
+                value=""
+            >
+        </div>
+
+        <!-- Calculate Button -->
+        <button 
+            id="calculateButton" 
+            onclick="calculateFood()" 
+            class="w-full bg-secondary-green hover:bg-green-600 text-white font-bold py-3 rounded-lg shadow-md transition duration-300 transform hover:scale-[1.01] text-lg"
+        >
+            คำนวณปริมาณอาหาร
+        </button>
+
+        <!-- Output Results Area -->
+        <div id="resultsArea" class="mt-8 p-5 bg-blue-50 border-l-4 border-primary-blue rounded-lg transition-all duration-500 opacity-0 h-0 overflow-hidden">
+            <h2 class="text-xl font-bold text-primary-blue mb-3">
+                <span class="mr-2">🐟</span> ปริมาณอาหารที่ควรให้ต่อวัน
+            </h2>
+            <div id="resultMin" class="text-gray-800 text-lg mb-2"></div>
+            <div id="resultMax" class="text-gray-800 text-lg"></div>
+            <p class="text-sm text-gray-500 mt-4">
+                (แนะนำให้ปรับปริมาณอาหารตามอุณหภูมิน้ำและพฤติกรรมการกินของปลา)
+            </p>
+        </div>
+
+    </div>
+
+    <!-- JavaScript/App Inventor Blocks Logic -->
+    <script type="module">
+        // Mandatory Firebase imports for canvas environment (though not used for this calculation)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Global variables provided by the canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth;
+
+        // Initialize Firebase on load
+        window.onload = async () => {
+            if (Object.keys(firebaseConfig).length > 0) {
+                try {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    if (authToken) {
+                        await signInWithCustomToken(auth, authToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    console.log("Firebase initialized and authenticated successfully.");
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                }
+            } else {
+                console.warn("Firebase configuration not found. Running application without persistent storage.");
+            }
+        };
+
+        // Function equivalent to the 'when calculateButton.Click do' block
+        window.calculateFood = function() {
+            const weightInput = document.getElementById('weightInput');
+            const resultsArea = document.getElementById('resultsArea');
+            const resultMin = document.getElementById('resultMin');
+            const resultMax = document.getElementById('resultMax');
+
+            // 1. Get the weight value (analogous to getting TextBox.Text)
+            const totalWeight = parseFloat(weightInput.value);
+
+            // Input validation
+            if (isNaN(totalWeight) || totalWeight <= 0) {
+                // Show a custom message instead of alert()
+                resultsArea.className = 'mt-8 p-5 bg-red-100 border-l-4 border-red-500 rounded-lg transition-all duration-500 opacity-100 h-auto';
+                resultMin.innerHTML = `<span class="font-bold text-red-700">⚠️ โปรดกรอกน้ำหนักรวมของปลาให้ถูกต้อง</span>`;
+                resultMax.textContent = '';
+                return;
+            }
+
+            // 2. Calculation Logic (analogous to Math blocks)
+            // ปริมาณอาหารต่ำสุด (2.5%): Weight * 0.025
+            const minFood = totalWeight * 0.025;
+            // ปริมาณอาหารสูงสุด (3.0%): Weight * 0.03
+            const maxFood = totalWeight * 0.03;
+
+            // 3. Display Results (analogous to set Label.Text to)
+            
+            // Format results to 2 decimal places
+            const minFoodFormatted = minFood.toFixed(2);
+            const maxFoodFormatted = maxFood.toFixed(2);
+
+            resultMin.innerHTML = `<span class="font-semibold">ต่ำสุด (2.5%):</span> <span class="text-secondary-green font-extrabold">${minFoodFormatted}</span> กิโลกรัม`;
+            resultMax.innerHTML = `<span class="font-semibold">สูงสุด (3.0%):</span> <span class="text-secondary-green font-extrabold">${maxFoodFormatted}</span> กิโลกรัม`;
+
+            // Animate results area visibility
+            resultsArea.className = 'mt-8 p-5 bg-blue-50 border-l-4 border-primary-blue rounded-lg transition-all duration-500 opacity-100 h-auto';
+        };
+    </script>
+</body>
+</html>
